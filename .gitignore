@@ -52,3 +52,6 @@ CATKIN_IGNORE
 
 Dockerfile
 docker-compose.yml
+*/log
+CLAUDE.md
+*/install

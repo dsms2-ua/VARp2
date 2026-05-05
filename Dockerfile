@@ -8,23 +8,24 @@ ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /home/ros2_ws
 COPY ./src /home/ros2_ws/src  
 
-# Actualizar e instalar dependencias base
-RUN apt-get update && apt-get install -y \
-    ros-jazzy-turtlebot3 \
-    ros-jazzy-turtlebot3-msgs \
-    ros-jazzy-turtlebot3-simulations \
-    ros-jazzy-ros-gz \
-    mesa-utils \
-    libgl1 \
-    libgl1-mesa-dri \
-    libglu1-mesa \
-    x11-apps \
-    xvfb \
-    x11vnc \
-    xfce4 \
-    xfce4-terminal \
-    dbus-x11 \
-    && rm -rf /var/lib/apt/lists/*
+# 1. apt-get update: Descarga el catálogo de Ubuntu
+# 2. rosdep update: Descarga el catálogo de librerías de ROS
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      python3-colcon-common-extensions \
+      python3-rosdep \
+      ros-jazzy-depth-image-proc \
+      ros-jazzy-joint-state-publisher \
+      ros-jazzy-rclcpp-components \
+      ros-jazzy-robot-state-publisher \
+      ros-jazzy-ros-gz-bridge \
+      ros-jazzy-ros-gz-sim \
+      ros-jazzy-turtlebot3-description \
+      ros-jazzy-turtlebot3-gazebo \
+      ros-jazzy-xacro \
+    && rm -rf /var/lib/apt/lists/* && \
+    rosdep init || true && \
+    rosdep update
 
 # Instalar dependencias y compilar 
 RUN apt-get update && rosdep update && \
