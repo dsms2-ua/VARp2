@@ -138,7 +138,7 @@ def generate_launch_description():
 
     # Publica CameraInfo de profundidad con timestamp/frame_id del depth image
     depth_camera_info = Node(
-        package='turtlebot_gazebo_multiple',
+        package='turtlebot_gazebo_race',
         executable='depth_camera_info_publisher',
         name='depth_camera_info_publisher',
         output='screen',
