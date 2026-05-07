@@ -1,0 +1,1 @@
+docker stop var_container

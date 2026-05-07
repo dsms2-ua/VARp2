@@ -17,13 +17,13 @@ services:
     tty: true
 
     # BLOQUE PARA ACTIVAR LA GPU
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all      
-              capabilities: [gpu]
+  #  deploy:
+  #    resources:
+  #      reservations:
+  #        devices:
+  #          - driver: nvidia
+  #            count: all      
+  #            capabilities: [gpu]
 
     command: sh -c "chown -R 1000:1000 /home/ros2_ws/src && bash"
     # Dar permisos de escritura al usuario no root (1000) desde fuera del contenedor en el volumen montado
