@@ -1,0 +1,29 @@
+vfh_node:
+  ros__parameters:
+    # Histogram
+    num_sectors: 360
+    density_threshold: 5.0
+    smoothing_window: 10
+    max_range: 3.5
+
+    # Robot geometry
+    robot_radius: 0.22        # TurtleBot3 Waffle
+    safety_margin: 0.10
+
+    # VFH+ cost weights
+    w1: 5.0                   # towards target waypoint
+    w2: 2.0                   # continuity with current direction
+    w3: 1.0                   # smoothness vs previous cycle
+
+    # Velocity limits
+    max_linear_vel: 0.26      # m/s — TurtleBot3 Waffle max
+    min_linear_vel: 0.05
+    max_angular_vel: 1.82     # rad/s — TurtleBot3 Waffle max
+
+    # Waypoints
+    waypoint_tolerance: 0.5   # metres to consider WP reached
+    waypoints_file: ''        # empty = auto-resolve from package
+
+    # Recovery
+    stuck_timeout: 3.0        # seconds without movement before recovery
+    recovery_backup_dist: 0.2 # metres to reverse during recovery
