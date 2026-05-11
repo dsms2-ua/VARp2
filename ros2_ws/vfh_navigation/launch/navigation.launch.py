@@ -27,10 +27,18 @@ def generate_launch_description():
         output='screen',
     )
 
-    # Delay VFH node until Gazebo bridge has the /scan topic ready
-    vfh_delayed = TimerAction(period=8.0, actions=[vfh_node])
+    metrics_node = Node(
+        package='vfh_navigation',
+        executable='metrics_node',
+        name='metrics_node',
+        parameters=[vfh_params, {'waypoints_file': wp_file}],
+        output='screen',
+    )
+
+    # Delay navigation nodes until Gazebo bridge has the /scan topic ready
+    nav_delayed = TimerAction(period=8.0, actions=[vfh_node, metrics_node])
 
     return LaunchDescription([
         gazebo,
-        vfh_delayed,
+        nav_delayed,
     ])

@@ -30,6 +30,7 @@ setup(
         'console_scripts': [
             'waypoint_recorder = vfh_navigation.waypoint_recorder:main',
             'vfh_node          = vfh_navigation.vfh_node:main',
+            'metrics_node      = vfh_navigation.metrics_node:main',
         ],
     },
 )

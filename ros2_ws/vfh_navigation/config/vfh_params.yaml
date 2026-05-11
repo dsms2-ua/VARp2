@@ -27,3 +27,10 @@ vfh_node:
     # Recovery
     stuck_timeout: 3.0        # seconds without movement before recovery
     recovery_backup_dist: 0.2 # metres to reverse during recovery
+
+metrics_node:
+  ros__parameters:
+    waypoint_tolerance: 0.5       # metres — same as vfh_node
+    evasion_threshold_deg: 30.0   # steering > this → evasive maneuver
+    min_lap_time_s: 15.0          # guard against false lap detection at startup
+    logs_dir: ''                  # empty = auto-resolve to <ws>/logs
