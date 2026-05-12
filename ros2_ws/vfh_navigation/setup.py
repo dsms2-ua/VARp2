@@ -15,7 +15,7 @@ setup(
         (os.path.join('share', package_name, 'launch'),
             glob('launch/*.py')),
         (os.path.join('share', package_name, 'config'),
-            glob('config/*.yaml')),
+            glob('config/*.yaml') + glob('config/*.rviz')),
         (os.path.join('share', package_name, 'waypoints'),
             glob('waypoints/*.yaml')),
     ],
@@ -31,6 +31,7 @@ setup(
             'waypoint_recorder = vfh_navigation.waypoint_recorder:main',
             'vfh_node          = vfh_navigation.vfh_node:main',
             'metrics_node      = vfh_navigation.metrics_node:main',
+            'histogram_viz     = vfh_navigation.histogram_viz_node:main',
         ],
     },
 )

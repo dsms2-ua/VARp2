@@ -7,11 +7,12 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    vfh_share = get_package_share_directory('vfh_navigation')
+    vfh_share  = get_package_share_directory('vfh_navigation')
     race_share = get_package_share_directory('turtlebot_gazebo_race')
 
-    vfh_params  = os.path.join(vfh_share, 'config', 'vfh_params.yaml')
-    wp_file     = os.path.join(vfh_share, 'waypoints', 'circuit_waypoints.yaml')
+    vfh_params   = os.path.join(vfh_share, 'config',    'vfh_params.yaml')
+    wp_file      = os.path.join(vfh_share, 'waypoints', 'circuit_waypoints.yaml')
+    rviz_config  = os.path.join(vfh_share, 'config',    'rviz_config.rviz')
 
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -35,8 +36,27 @@ def generate_launch_description():
         output='screen',
     )
 
+    histogram_viz_node = Node(
+        package='vfh_navigation',
+        executable='histogram_viz',
+        name='histogram_viz_node',
+        parameters=[vfh_params],
+        output='screen',
+    )
+
+    rviz_node = Node(
+        package='rviz2',
+        executable='rviz2',
+        name='rviz2',
+        arguments=['-d', rviz_config],
+        output='screen',
+    )
+
     # Delay navigation nodes until Gazebo bridge has the /scan topic ready
-    nav_delayed = TimerAction(period=8.0, actions=[vfh_node, metrics_node])
+    nav_delayed = TimerAction(
+        period=8.0,
+        actions=[vfh_node, metrics_node, histogram_viz_node, rviz_node],
+    )
 
     return LaunchDescription([
         gazebo,
