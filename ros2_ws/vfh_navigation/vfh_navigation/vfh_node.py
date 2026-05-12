@@ -121,9 +121,10 @@ class VFHNode(Node):
             durability=DurabilityPolicy.VOLATILE,
         )
 
-        self.pub_vel  = self.create_publisher(Twist,              '/cmd_vel',        10)
-        self.pub_hist = self.create_publisher(Float32MultiArray,  '/vfh/histogram',  10)
-        self.pub_steer= self.create_publisher(Float32,            '/vfh/steering',   10)
+        self.pub_vel   = self.create_publisher(Twist,             '/cmd_vel',        10)
+        self.pub_hist  = self.create_publisher(Float32MultiArray, '/vfh/histogram',  10)
+        self.pub_steer = self.create_publisher(Float32,           '/vfh/steering',   10)
+        self.pub_target= self.create_publisher(Float32,           '/vfh/target',     10)
 
         self.create_subscription(LaserScan, '/scan', self._scan_cb,  sensor_qos)
         self.create_subscription(Odometry,  '/odom', self._odom_cb,  sensor_qos)
@@ -304,6 +305,10 @@ class VFHNode(Node):
         smsg = Float32()
         smsg.data = float(steering)
         self.pub_steer.publish(smsg)
+
+        tmsg = Float32()
+        tmsg.data = float(target_angle)
+        self.pub_target.publish(tmsg)
 
 
 def main(args=None):

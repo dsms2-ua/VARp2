@@ -44,6 +44,14 @@ def generate_launch_description():
         output='screen',
     )
 
+    histogram_mpl_node = Node(
+        package='vfh_navigation',
+        executable='histogram_mpl',
+        name='histogram_matplotlib_node',
+        parameters=[vfh_params],
+        output='screen',
+    )
+
     rviz_node = Node(
         package='rviz2',
         executable='rviz2',
@@ -55,7 +63,8 @@ def generate_launch_description():
     # Delay navigation nodes until Gazebo bridge has the /scan topic ready
     nav_delayed = TimerAction(
         period=8.0,
-        actions=[vfh_node, metrics_node, histogram_viz_node, rviz_node],
+        actions=[vfh_node, metrics_node, histogram_viz_node,
+                 histogram_mpl_node, rviz_node],
     )
 
     return LaunchDescription([

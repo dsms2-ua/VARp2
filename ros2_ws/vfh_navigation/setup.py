@@ -32,6 +32,7 @@ setup(
             'vfh_node          = vfh_navigation.vfh_node:main',
             'metrics_node      = vfh_navigation.metrics_node:main',
             'histogram_viz     = vfh_navigation.histogram_viz_node:main',
+            'histogram_mpl     = vfh_navigation.histogram_matplotlib_node:main',
         ],
     },
 )

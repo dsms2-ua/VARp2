@@ -28,6 +28,12 @@ vfh_node:
     stuck_timeout: 3.0        # seconds without movement before recovery
     recovery_backup_dist: 0.2 # metres to reverse during recovery
 
+histogram_matplotlib_node:
+  ros__parameters:
+    density_threshold: 5.0
+    max_range: 3.5
+    waypoints_file: ''            # empty = auto-resolve
+
 histogram_viz_node:
   ros__parameters:
     density_threshold: 5.0        # matches vfh_node — threshold ring drawn here
