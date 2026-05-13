@@ -186,7 +186,7 @@ def generate_launch_description():
     return LaunchDescription([
         set_env_vars_resources,   # <-- primero, antes de arrancar Gazebo
         gzserver_cmd,
-        gzclient_cmd,
+        #gzclient_cmd,
         joint_state_publisher,
         robot_state_publisher,
         spawn_entity,

@@ -32,8 +32,15 @@ class DetectorNode(Node):
 
             self.get_logger().info(f'Detectado: {label}')
 
-        # Publicar imagen anotada
-        self.pub.publish(self.bridge.cv2_to_imgmsg(frame, 'bgr8'))
+        annotated_frame = results[0].plot()
+
+        # Reducir la imagen a la mitad de su tamaño original
+        nuevo_ancho = int(annotated_frame.shape[1] * 0.5)
+        nuevo_alto = int(annotated_frame.shape[0] * 0.5)
+        frame_pequeno = cv2.resize(annotated_frame, (nuevo_ancho, nuevo_alto))
+
+        # Publicar la imagen reducida
+        self.pub.publish(self.bridge.cv2_to_imgmsg(frame_pequeno, 'bgr8'))
 
 def main():
     rclpy.init()
