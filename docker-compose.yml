@@ -2,8 +2,8 @@ services:
   ros2_jazzy_cpu:
     build: .
     platform: linux/arm64
-    image: var_ros2_image_cpu
-    container_name: var_container_cpu
+    image: var_ros2_image
+    container_name: var_container
     ports:
       - "5900:5900"        # puerto VNC
     environment:

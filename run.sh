@@ -5,7 +5,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-CONTAINER_NAME=var_container_cpu
+CONTAINER_NAME=var_container
 VNC_PORT=5900
 VNC_PASS=davidet
 

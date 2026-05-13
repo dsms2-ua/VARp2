@@ -72,8 +72,8 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
             os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')
         ),
-        #launch_arguments={'gz_args': '-g -v2 '}.items(),
-        launch_arguments={'gz_args': f'-r --headless-rendering {sdf_file}'}.items(),
+        launch_arguments={'gz_args': '-g -v2 '}.items(),
+        #launch_arguments={'gz_args': f'-r --headless-rendering {sdf_file}'}.items(),
     )
 
     # Publicar el Estado del Robot (Robot State Publisher)
