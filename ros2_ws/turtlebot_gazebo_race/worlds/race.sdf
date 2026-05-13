@@ -1254,5 +1254,11 @@
         <view_controller>orbit</view_controller>
       </camera>
     </gui>
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Standing person</uri>
+      <name>person_1</name>
+      <pose>7.05 9.00 0 0 0 0</pose>
+    </include>
   </world>
 </sdf>

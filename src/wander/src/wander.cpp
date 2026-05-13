@@ -5,6 +5,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 
 // Usamos std::chrono para definir tiempos (ms, s)
 using namespace std::chrono_literals;
@@ -16,6 +17,7 @@ private:
     // Publishers/Subscribers
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr commandPub;
     rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr laserSub;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odometrySub;
     rclcpp::TimerBase::SharedPtr timer_; 
 
     // Variables de control
@@ -46,6 +48,9 @@ public:
         // Necesitamos std::bind para vincular la función callback a esta clase
         laserSub = this->create_subscription<sensor_msgs::msg::LaserScan>(
             "base_scan", 1, std::bind(&Wander::commandCallback, this, std::placeholders::_1));
+
+        odometrySub = this->create_subscription<nav_msgs::msg::Odometry>(
+            "odom", 1, std::bind(&Wander::commandOdom, this, std::placeholders::_1));
 
         // El Timer 
         // Se ejecutará cada 100ms (10 Hz)
@@ -82,6 +87,19 @@ public:
 
         // TODO: a partir de los datos del láser se tiene que modificar las variables forwardVel y rotateVel para hacer que el robot no choque.
 	};
+
+    void commandOdom(const nav_msgs::msg::Odometry::SharedPtr msg) {
+        double q_z = msg->pose.pose.orientation.z;
+        double q_w = msg->pose.pose.orientation.w;
+        double angle = 2 * atan2(q_z, q_w);
+        // Imprimimos solo de vez en cuando para no saturar la consola
+        // RCLCPP_INFO_STREAM_THROTTLE permite hacerlo (cada 2 segundos)
+        RCLCPP_INFO_STREAM_THROTTLE(this->get_logger(), *this->get_clock(),
+        2000,
+        "Odometry -> x: " << msg->pose.pose.position.x <<
+        " | y: " << msg->pose.pose.position.y <<
+        " | ang: " << angle);
+    }
 
     // “Bucle” por timer
     // Esta función se llama automáticamente 10 veces por segundo
