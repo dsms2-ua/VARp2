@@ -53,7 +53,8 @@ def generate_launch_description():
     # Añadir ruta de modelos al resource path de Gazebo (igual que empty_world)
     set_env_vars_resources = AppendEnvironmentVariable(
         'GZ_SIM_RESOURCE_PATH',
-        os.path.join(pkg_turtlebot3_gazebo, 'models')
+        os.path.join(pkg_turtlebot3_gazebo, 'models') +
+        ':' + os.path.join(pkg_share, 'models')
     )
 
     # Servidor de Gazebo (sin GUI)
