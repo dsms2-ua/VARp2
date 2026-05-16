@@ -2,13 +2,13 @@ vfh_node:
   ros__parameters:
     # Histogram
     num_sectors: 360
-    density_threshold: 5.0
-    smoothing_window: 10
+    density_threshold: 1.5    # (1/d)^2=1.5 → blocks at ~0.82 m; persona detectada a ~0.75 m
+    smoothing_window: 7       # less averaging so distant obstacles survive smoothing
     max_range: 3.5
 
     # Robot geometry
     robot_radius: 0.22        # TurtleBot3 Waffle
-    safety_margin: 0.10
+    safety_margin: 0.10       # reducido: más margen de maniobra en pasillos estrechos
 
     # VFH+ cost weights
     w1: 5.0                   # towards target waypoint
@@ -16,27 +16,29 @@ vfh_node:
     w3: 1.0                   # smoothness vs previous cycle
 
     # Velocity limits
-    max_linear_vel: 0.26      # m/s — TurtleBot3 Waffle max
-    min_linear_vel: 0.05
-    max_angular_vel: 1.82     # rad/s — TurtleBot3 Waffle max
+    max_linear_vel: 0.7       # forzado por encima del límite hardware (0.26 nominal)
+    min_linear_vel: 0.08      # raised: 0.05 was too slow even in tight turns
+    max_angular_vel: 1.82     # rad/s — TurtleBot3 Waffle hardware max
+    angular_gain: 1.5         # angular = steer * gain; 1.5 avoids overshoot at 2.0
+    brake_threshold: 6.0      # solo frena si algo grande y muy cercano llena el sector frontal
 
     # Waypoints
-    waypoint_tolerance: 0.5   # metres to consider WP reached
+    waypoint_tolerance: 0.30  # ajustado al mínimo razonable
     waypoints_file: ''        # empty = auto-resolve from package
 
     # Recovery
-    stuck_timeout: 3.0        # seconds without movement before recovery
-    recovery_backup_dist: 0.2 # metres to reverse during recovery
+    stuck_timeout: 2.0        # reduced from 3.0 — faster recovery if VFH fails
+    recovery_backup_dist: 0.5 # aumentado: 0.2m no sacaba al robot de la trampa persona+pared
 
 histogram_matplotlib_node:
   ros__parameters:
-    density_threshold: 5.0
+    density_threshold: 0.8
     max_range: 3.5
     waypoints_file: ''            # empty = auto-resolve
 
 histogram_viz_node:
   ros__parameters:
-    density_threshold: 5.0        # matches vfh_node — threshold ring drawn here
+    density_threshold: 0.8        # matches vfh_node — threshold ring drawn here
     bar_width: 0.008              # LINE_LIST shaft width in metres
     max_bar_length: 0.45          # bar length at peak density (metres)
     inner_radius: 0.28            # bars start this far from robot centre (metres)
@@ -44,7 +46,7 @@ histogram_viz_node:
 
 metrics_node:
   ros__parameters:
-    waypoint_tolerance: 0.5       # metres — same as vfh_node
+    waypoint_tolerance: 0.35      # metres — same as vfh_node
     evasion_threshold_deg: 30.0   # steering > this → evasive maneuver
     min_lap_time_s: 15.0          # guard against false lap detection at startup
     logs_dir: ''                  # empty = auto-resolve to <ws>/logs

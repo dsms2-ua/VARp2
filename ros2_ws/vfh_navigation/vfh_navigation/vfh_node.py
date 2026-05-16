@@ -52,7 +52,7 @@ class VFHNode(Node):
         # ── Parameters ──────────────────────────────────────────────────────
         self.declare_parameter('waypoints_file', '')
         self.declare_parameter('num_sectors',        360)
-        self.declare_parameter('density_threshold',  2.0)
+        self.declare_parameter('density_threshold',  1.5)
         self.declare_parameter('smoothing_window',   10)
         self.declare_parameter('max_range',          3.5)
         self.declare_parameter('robot_radius',       0.22)
@@ -67,6 +67,8 @@ class VFHNode(Node):
         self.declare_parameter('stuck_timeout',      3.0)
         self.declare_parameter('recovery_backup_dist', 0.2)
         self.declare_parameter('startup_delay',      5.0)
+        self.declare_parameter('angular_gain',       1.5)
+        self.declare_parameter('brake_threshold',    3.0)
 
         def p(name):
             return self.get_parameter(name).value
@@ -76,9 +78,11 @@ class VFHNode(Node):
         self.max_range           = p('max_range')
         self.robot_radius        = p('robot_radius') + p('safety_margin')
         self.w1 = p('w1'); self.w2 = p('w2'); self.w3 = p('w3')
-        self.max_lin  = p('max_linear_vel')
-        self.min_lin  = p('min_linear_vel')
-        self.max_ang  = p('max_angular_vel')
+        self.max_lin       = p('max_linear_vel')
+        self.min_lin       = p('min_linear_vel')
+        self.max_ang       = p('max_angular_vel')
+        self.angular_gain  = p('angular_gain')
+        self.brake_threshold = p('brake_threshold')
         self.wp_tol   = p('waypoint_tolerance')
         self.stuck_timeout       = p('stuck_timeout')
         self.recovery_backup     = p('recovery_backup_dist')
@@ -293,6 +297,12 @@ class VFHNode(Node):
 
         valleys = find_valleys(hist, self.density_threshold)
 
+        # Si no hay ningún valle con el threshold normal, relajarlo hasta x2.
+        # Esto permite encontrar huecos estrechos (entre persona y pared) que
+        # con el margen completo no se detectaban como libres.
+        if not valleys:
+            valleys = find_valleys(hist, self.density_threshold * 2.0)
+
         steering = select_best_valley(
             valleys,
             target_angle,
@@ -302,20 +312,27 @@ class VFHNode(Node):
         )
 
         if steering is None:
-            # No valley found — rotate toward target hoping to open a path
-            linear  = 0.0
-            angular = math.copysign(self.max_ang, target_angle)
+            # Aún sin valle — ir hacia el sector de menor densidad mientras
+            # se gira. Moverse cambia la geometría y puede abrir un hueco.
+            min_idx = int(np.argmin(hist))
+            fallback_rad = math.radians((min_idx + 180) % 360 - 180)
+            linear  = self.min_lin
+            angular = max(-self.max_ang,
+                          min(self.max_ang, fallback_rad * self.angular_gain))
         else:
-            # Front sector: bins 350..359 and 0..9
-            front_bins = list(hist[350:]) + list(hist[:10])
+            # Front sector: bins 345..359 and 0..14 (±15°, 30 bins total)
+            front_bins = list(hist[345:]) + list(hist[:15])
             linear, angular = compute_velocity(
                 steering, front_bins,
                 self.max_lin, self.min_lin,
                 self.max_ang, self.density_threshold,
+                self.angular_gain, self.brake_threshold,
             )
 
         self.prev_steering = self.cur_steering
-        self.cur_steering  = steering
+        # Guard: keep last valid steering if VFH found no valley this cycle
+        if steering is not None:
+            self.cur_steering = steering
 
         msg = Twist()
         msg.linear.x  = float(linear)
