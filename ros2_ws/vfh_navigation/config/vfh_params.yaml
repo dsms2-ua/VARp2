@@ -50,3 +50,10 @@ metrics_node:
     evasion_threshold_deg: 30.0   # steering > this → evasive maneuver
     min_lap_time_s: 15.0          # guard against false lap detection at startup
     logs_dir: ''                  # empty = auto-resolve to <ws>/logs
+
+path_recorder_node:
+  ros__parameters:
+    waypoint_tolerance: 0.35      # metres — same as vfh_node
+    min_lap_time_s: 15.0          # guard against false lap detection at startup
+    min_record_distance: 0.05     # metres — skip pose if robot hasn't moved this far
+    logs_dir: ''                  # empty = auto-resolve to <ws>/logs

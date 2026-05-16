@@ -23,6 +23,7 @@ RUN apt-get update && \
       ros-jazzy-ros-gz-sim \
       ros-jazzy-turtlebot3-description \
       ros-jazzy-turtlebot3-gazebo \
+      ros-jazzy-slam-toolbox \
       ros-jazzy-xacro \
     && rm -rf /var/lib/apt/lists/* && \
     rosdep init || true && \
