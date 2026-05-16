@@ -8,7 +8,7 @@ ros2 launch turtlebot_gazebo_race create_multi_robot_race.launch.py
 ros2 run vfh_navigation vfh_node
 ros2 run vfh_navigation metrics_node 
 
-ros2 topic echo /lap/metrics
+ros2 topic echo /lap/metrics --truncate-length 500
 
 
 

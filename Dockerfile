@@ -12,6 +12,7 @@ COPY ./src /home/ros2_ws/src
 # 2. rosdep update: Descarga el catálogo de librerías de ROS
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+      wmctrl \
       python3-colcon-common-extensions \
       python3-rosdep \
       ros-jazzy-depth-image-proc \

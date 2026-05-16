@@ -66,6 +66,7 @@ class VFHNode(Node):
         self.declare_parameter('waypoint_tolerance', 0.5)
         self.declare_parameter('stuck_timeout',      3.0)
         self.declare_parameter('recovery_backup_dist', 0.2)
+        self.declare_parameter('startup_delay',      5.0)
 
         def p(name):
             return self.get_parameter(name).value
@@ -81,6 +82,7 @@ class VFHNode(Node):
         self.wp_tol   = p('waypoint_tolerance')
         self.stuck_timeout       = p('stuck_timeout')
         self.recovery_backup     = p('recovery_backup_dist')
+        self._startup_delay      = p('startup_delay')
 
         # ── Waypoints ────────────────────────────────────────────────────────
         wp_file = p('waypoints_file')
@@ -90,6 +92,7 @@ class VFHNode(Node):
         self.waypoints = self._load_waypoints(wp_file)
         self.wp_index  = 0
         self.lap_count = 0
+        self._first_circuit_done = False  # primer wrap no cuenta como vuelta
         self.get_logger().info(f'Loaded {len(self.waypoints)} waypoints from {wp_file}')
         if not self.waypoints:
             self.get_logger().error('No waypoints loaded — run waypoint_recorder first, then restart.')
@@ -104,11 +107,14 @@ class VFHNode(Node):
         self.prev_steering = 0.0
         self.cur_steering  = 0.0
 
+        # Startup: robot waits before moving
+        self._node_start_time  = time.time()
+
         # Stuck detection
         self._last_moved_x     = 0.0
         self._last_moved_y     = 0.0
         self._last_move_time   = time.time()
-        self._startup_grace_until = time.time() + 8.0  # no stuck check for 8s
+        self._startup_grace_until = time.time() + self._startup_delay + 5.0
         self._recovering       = False
         self._recovery_start_x = 0.0
         self._recovery_start_y = 0.0
@@ -198,11 +204,17 @@ class VFHNode(Node):
         self.wp_index += 1
         if self.wp_index >= len(self.waypoints):
             self.wp_index = 0
-            self.lap_count += 1
-            self.get_logger().info(f'=== LAP {self.lap_count} COMPLETE ===')
+            if not self._first_circuit_done:
+                # El robot empieza antes de wp 0 (en la salida), así que la
+                # primera vuelta al índice no es una vuelta completa de carrera.
+                self._first_circuit_done = True
+                self.get_logger().info('Circuito completado — cronómetro de carrera iniciado')
+            else:
+                self.lap_count += 1
+                self.get_logger().info(f'=== VUELTA {self.lap_count} COMPLETADA ===')
         wp = self._current_waypoint()
         self.get_logger().info(
-            f'Next WP [{self.wp_index}]: ({wp["x"]:.2f}, {wp["y"]:.2f})')
+            f'Siguiente WP [{self.wp_index}]: ({wp["x"]:.2f}, {wp["y"]:.2f})')
 
     # ── Stuck detection & recovery ─────────────────────────────────────────
 
@@ -229,6 +241,14 @@ class VFHNode(Node):
 
     def _control_loop(self):
         if not self.ranges:
+            return
+
+        elapsed = time.time() - self._node_start_time
+        if elapsed < self._startup_delay:
+            remaining = int(self._startup_delay - elapsed) + 1
+            if int(elapsed) != int(elapsed - 0.05):  # log aprox cada segundo
+                self.get_logger().info(f'Arrancando en {remaining}s...')
+            self.pub_vel.publish(Twist())
             return
 
         # Non-blocking recovery: back up until distance covered, then resume
