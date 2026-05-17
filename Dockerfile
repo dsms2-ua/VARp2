@@ -25,7 +25,9 @@ RUN apt-get update && \
       ros-jazzy-turtlebot3-gazebo \
       ros-jazzy-slam-toolbox \
       ros-jazzy-xacro \
+      python3-pip \
     && rm -rf /var/lib/apt/lists/* && \
+    pip install --break-system-packages ultralytics && \
     rosdep init || true && \
     rosdep update
 

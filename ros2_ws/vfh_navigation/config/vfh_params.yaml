@@ -2,7 +2,7 @@ vfh_node:
   ros__parameters:
     # Histogram
     num_sectors: 360
-    density_threshold: 1.5    # (1/d)^2=1.5 → blocks at ~0.82 m; persona detectada a ~0.75 m
+    density_threshold: 1.0    # (1/d)^2=1.0 → blocks at ~1.0 m; persona detectada a ~0.88 m
     smoothing_window: 7       # less averaging so distant obstacles survive smoothing
     max_range: 3.5
 
@@ -16,7 +16,7 @@ vfh_node:
     w3: 1.0                   # smoothness vs previous cycle
 
     # Velocity limits
-    max_linear_vel: 0.7       # forzado por encima del límite hardware (0.26 nominal)
+    max_linear_vel: 1.0       # forzado por encima del límite hardware (0.26 nominal)
     min_linear_vel: 0.08      # raised: 0.05 was too slow even in tight turns
     max_angular_vel: 1.82     # rad/s — TurtleBot3 Waffle hardware max
     angular_gain: 1.5         # angular = steer * gain; 1.5 avoids overshoot at 2.0
