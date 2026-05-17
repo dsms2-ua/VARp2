@@ -1254,11 +1254,5 @@
         <view_controller>orbit</view_controller>
       </camera>
     </gui>
-
-    <include>
-      <uri>model://person_walking</uri>
-      <name>person_1</name>
-      <pose>7.05 9.00 0 0 0 0</pose>
-    </include>
   </world>
 </sdf>
