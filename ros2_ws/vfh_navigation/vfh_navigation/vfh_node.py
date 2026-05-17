@@ -123,9 +123,6 @@ class VFHNode(Node):
         self._recovery_start_x = 0.0
         self._recovery_start_y = 0.0
 
-        # Wall-edge hysteresis: +1 = going around left, -1 = right, 0 = free
-        self._wall_side = 0
-
         # ── ROS interfaces ───────────────────────────────────────────────────
         # Gazebo bridge publishes sensor topics with BEST_EFFORT reliability
         sensor_qos = QoSProfile(
@@ -244,35 +241,6 @@ class VFHNode(Node):
         self._recovery_start_x = self.pos_x
         self._recovery_start_y = self.pos_y
 
-    # ── Wall-edge fallback ────────────────────────────────────────────────
-
-    def _wall_edge_steer(self, hist, target_angle):
-        """
-        Scan outward from target_angle both ways and return the angle of the
-        nearest free sector (density < threshold×3).  Prefers the side stored
-        in _wall_side so the robot commits to one side and doesn't oscillate.
-        When a free sector is found, _wall_side is updated.
-        Last resort: global minimum-density sector.
-        """
-        n = len(hist)
-        relaxed = self.density_threshold * 3.0
-        target_idx = int(round(math.degrees(target_angle))) % n
-
-        # Order of scan: preferred side first (+1=left/CCW, -1=right/CW)
-        sides = [1, -1] if self._wall_side >= 0 else [-1, 1]
-
-        for delta in range(1, n // 2):
-            for sign in sides:
-                idx = (target_idx + sign * delta) % n
-                if hist[idx] < relaxed:
-                    self._wall_side = sign
-                    angle_deg = (idx + 180) % 360 - 180
-                    return math.radians(float(angle_deg))
-
-        # Truly all blocked at ×3 threshold — fall back to global minimum
-        min_idx = int(np.argmin(hist))
-        return math.radians(float((min_idx + 180) % 360 - 180))
-
     # ── Control loop ──────────────────────────────────────────────────────
 
     def _control_loop(self):
@@ -344,19 +312,13 @@ class VFHNode(Node):
         )
 
         if steering is None:
-            # No valley found even with ×2 threshold.
-            # Steer toward the nearest free sector edge closest to the target
-            # direction, honouring the established wall side (hysteresis).
-            fallback_rad = self._wall_edge_steer(hist, target_angle)
-            # Large required turn → stop and spin at max angular so the robot
-            # rotates past the wall edge instead of driving into it.
-            if abs(fallback_rad) > math.radians(15):
-                linear  = 0.0
-                angular = math.copysign(self.max_ang, fallback_rad)
-            else:
-                linear  = self.min_lin
-                angular = max(-self.max_ang,
-                              min(self.max_ang, fallback_rad * self.angular_gain))
+            # Aún sin valle — ir hacia el sector de menor densidad mientras
+            # se gira. Moverse cambia la geometría y puede abrir un hueco.
+            min_idx = int(np.argmin(hist))
+            fallback_rad = math.radians((min_idx + 180) % 360 - 180)
+            linear  = self.min_lin
+            angular = max(-self.max_ang,
+                          min(self.max_ang, fallback_rad * self.angular_gain))
         else:
             # Front sector: bins 345..359 and 0..14 (±15°, 30 bins total)
             front_bins = list(hist[345:]) + list(hist[:15])
@@ -366,11 +328,6 @@ class VFHNode(Node):
                 self.max_ang, self.density_threshold,
                 self.angular_gain, self.brake_threshold,
             )
-            # Update wall-side preference from normal steering
-            if abs(steering) > 0.5:
-                self._wall_side = 1 if steering > 0 else -1
-            elif abs(steering) < 0.15 and abs(target_angle) < 0.3:
-                self._wall_side = 0  # heading cleanly toward target — reset
 
         self.prev_steering = self.cur_steering
         # Guard: keep last valid steering if VFH found no valley this cycle
