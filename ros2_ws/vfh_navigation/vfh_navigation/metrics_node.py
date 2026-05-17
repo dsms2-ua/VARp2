@@ -75,10 +75,11 @@ class MetricsNode(Node):
         self.pos_y = 0.0
 
         # Lap state
-        self.lap_count      = 0
-        self.lap_start_time = time.time()
-        self._has_left_start = False
-        self._odom_received  = False
+        self.lap_count        = 0
+        self.lap_start_time   = time.time()
+        self._has_left_start  = False
+        self._odom_received   = False
+        self._first_circuit_done = False  # primer retorno a wp[0] no cuenta como vuelta
 
         # Per-lap accumulators
         self._reset_lap_metrics()
@@ -101,7 +102,7 @@ class MetricsNode(Node):
         self.create_subscription(Float32,   '/vfh/steering', self._steering_cb, 10)
 
         self.create_timer(1.0, self._publish_live_metrics)
-        self.get_logger().info('Metrics node started')
+        self.get_logger().info(f'Metrics node started — logs en: {self.logs_dir}')
 
     # ── Setup helpers ──────────────────────────────────────────────────────
 
@@ -149,7 +150,15 @@ class MetricsNode(Node):
         if (self._has_left_start
                 and dist_to_start < self.wp_tol
                 and elapsed > self.min_lap_time):
-            self._complete_lap(elapsed)
+            if not self._first_circuit_done:
+                # El robot no empieza en wp[0]: el primer retorno no es vuelta completa
+                self._first_circuit_done = True
+                self.lap_start_time  = time.time()
+                self._has_left_start = False
+                self._reset_lap_metrics()
+                self.get_logger().info('Primer circuito completado — cronómetro de carrera iniciado')
+            else:
+                self._complete_lap(elapsed)
 
     def _cmd_vel_cb(self, msg):
         speed = abs(msg.linear.x)

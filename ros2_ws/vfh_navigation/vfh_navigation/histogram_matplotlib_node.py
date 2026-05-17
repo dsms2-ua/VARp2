@@ -227,6 +227,7 @@ def main(args=None):
     spin_thread.start()
 
     fig, ani = build_figure(node)
+    fig.canvas.manager.set_window_title('VFH Histogram')
     plt.show()                          # blocks until window is closed
 
     node.destroy_node()

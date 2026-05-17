@@ -149,21 +149,28 @@ def select_best_valley(valleys, target_angle_rad, current_angle_rad,
 
 
 def compute_velocity(steering_angle_rad, histogram_front,
-                     max_linear=0.26, min_linear=0.05,
-                     max_angular=1.82, density_threshold=2.0):
+                     max_linear=0.26, min_linear=0.08,
+                     max_angular=1.82, density_threshold=0.6,
+                     angular_gain=1.5, brake_threshold=3.0):
     """
-    Adaptive velocity:
-    - Linear speed decreases with steering magnitude and with front obstacle density.
-    - Angular speed is proportional to steering angle.
+    Two-threshold design:
+    - density_threshold (0.6): used upstream by find_valleys for obstacle detection.
+      NOT used here — kept in signature only so callers don't need two separate values.
+    - brake_threshold (3.0): the actual braking boundary. High enough that circuit
+      walls at 2 m (density=0.25) don't throttle the robot on clear straights.
+    - steer_factor: Hann window — 99% speed at 15°, 75% at 60°, 50% at 90°.
+    - obstacle_factor: only kicks in when something large and close fills the front
+      sector (e.g. a wall at <1 m).
     """
-    steer_factor = 1.0 - min(abs(steering_angle_rad) / math.pi, 1.0)
+    steer_abs = min(abs(steering_angle_rad), math.pi)
+    steer_factor = (1.0 + math.cos(steer_abs)) / 2.0
 
-    front_density = max(histogram_front)
-    obstacle_factor = max(0.0, 1.0 - front_density / (density_threshold * 2.0))
+    mean_front = float(np.mean(histogram_front))
+    obstacle_factor = max(0.0, 1.0 - mean_front / brake_threshold)
 
     linear = max_linear * steer_factor * obstacle_factor
     linear = max(min_linear, min(linear, max_linear))
 
-    angular = max(-max_angular, min(max_angular, steering_angle_rad * 2.0))
+    angular = max(-max_angular, min(max_angular, steering_angle_rad * angular_gain))
 
     return linear, angular

@@ -12,6 +12,7 @@ COPY ./src /home/ros2_ws/src
 # 2. rosdep update: Descarga el catálogo de librerías de ROS
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+      wmctrl \
       python3-colcon-common-extensions \
       python3-rosdep \
       ros-jazzy-depth-image-proc \
@@ -22,8 +23,11 @@ RUN apt-get update && \
       ros-jazzy-ros-gz-sim \
       ros-jazzy-turtlebot3-description \
       ros-jazzy-turtlebot3-gazebo \
+      ros-jazzy-slam-toolbox \
       ros-jazzy-xacro \
+      python3-pip \
     && rm -rf /var/lib/apt/lists/* && \
+    pip install --break-system-packages ultralytics && \
     rosdep init || true && \
     rosdep update
 
