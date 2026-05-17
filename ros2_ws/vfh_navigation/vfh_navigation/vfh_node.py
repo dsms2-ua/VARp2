@@ -111,6 +111,11 @@ class VFHNode(Node):
         self.prev_steering = 0.0
         self.cur_steering  = 0.0
 
+        # Fallback hysteresis: cuando no hay valle, mantener la dirección de
+        # fallback elegida en el ciclo anterior para evitar que argmin(hist)
+        # haga whip-saw 180° entre ciclos consecutivos.
+        self._prev_fallback_rad = None
+
         # Startup: robot waits before moving
         self._node_start_time  = time.time()
 
@@ -286,7 +291,13 @@ class VFHNode(Node):
         target_angle = self._angle_to_wp(wp)
 
         # ── VFH+ pipeline ──────────────────────────────────────────────────
-        hist = compute_histogram(self.ranges, self.max_range, self.scan_min)
+        # Filtramos por debajo del envelope del robot + 5 cm: un rayo a < 0.27 m
+        # (robot_radius + safety_margin ya está sumado en self.robot_radius)
+        # genera densidades >12 que saturan el histograma y destruyen todos
+        # los valles. Si la lectura está dentro de ese radio, o es ruido del
+        # propio cuerpo o ya estamos incrustados — descartarla es más seguro.
+        min_valid = max(self.scan_min, self.robot_radius + 0.05)
+        hist = compute_histogram(self.ranges, self.max_range, min_valid)
         hist = widen_obstacles(hist, self.robot_radius, self.max_range)
         hist = smooth_histogram(hist, self.smoothing_window)
 
@@ -316,9 +327,21 @@ class VFHNode(Node):
             # se gira. Moverse cambia la geometría y puede abrir un hueco.
             min_idx = int(np.argmin(hist))
             fallback_rad = math.radians((min_idx + 180) % 360 - 180)
+
+            # Histéresis: si en el ciclo anterior ya estábamos en fallback
+            # y la nueva dirección difiere más de 60° de la anterior, se
+            # mantiene la anterior. Evita que argmin oscile 180° entre
+            # ciclos cuando dos sectores opuestos tienen densidad parecida.
+            if self._prev_fallback_rad is not None:
+                delta = abs(angle_diff(fallback_rad, self._prev_fallback_rad))
+                if delta > math.radians(60):
+                    fallback_rad = self._prev_fallback_rad
+            self._prev_fallback_rad = fallback_rad
+
             linear  = self.min_lin
             angular = max(-self.max_ang,
                           min(self.max_ang, fallback_rad * self.angular_gain))
+            steer_to_publish = fallback_rad
         else:
             # Front sector: bins 345..359 and 0..14 (±15°, 30 bins total)
             front_bins = list(hist[345:]) + list(hist[:15])
@@ -328,6 +351,9 @@ class VFHNode(Node):
                 self.max_ang, self.density_threshold,
                 self.angular_gain, self.brake_threshold,
             )
+            # Salimos de fallback: limpiar la memoria para el próximo
+            self._prev_fallback_rad = None
+            steer_to_publish = steering
 
         self.prev_steering = self.cur_steering
         # Guard: keep last valid steering if VFH found no valley this cycle
@@ -340,7 +366,7 @@ class VFHNode(Node):
         self.pub_vel.publish(msg)
 
         smsg = Float32()
-        smsg.data = float(steering)
+        smsg.data = float(steer_to_publish)
         self.pub_steer.publish(smsg)
 
         tmsg = Float32()

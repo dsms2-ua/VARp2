@@ -10,10 +10,10 @@ vfh_node:
     robot_radius: 0.22        # TurtleBot3 Waffle
     safety_margin: 0.10       # reducido: más margen de maniobra en pasillos estrechos
 
-    # VFH+ cost weights
+    # VFH+ cost weights (valores del paper original: 5, 2, 2)
     w1: 5.0                   # towards target waypoint
     w2: 2.0                   # continuity with current direction
-    w3: 1.0                   # smoothness vs previous cycle
+    w3: 2.0                   # smoothness vs previous cycle
 
     # Velocity limits
     max_linear_vel: 1.0       # forzado por encima del límite hardware (0.26 nominal)
