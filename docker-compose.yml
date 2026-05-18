@@ -1,22 +1,15 @@
 services:
   ros2_jazzy_cpu:
     build: .
-    platform: linux/arm64
     image: var_ros2_image
     container_name: var_container
-    ports:
-      - "5900:5900"        # puerto VNC
     environment:
-      - DISPLAY=:0
+      - DISPLAY=:${DISPLAY}
       - QT_X11_NO_MITSHM=1
       - ROS_LOCALHOST_ONLY=1
-      - XDG_RUNTIME_DIR=/tmp/runtime-root
-      - TURTLEBOT3_MODEL=waffle
-      - LIBGL_ALWAYS_SOFTWARE=1
-      - MESA_GL_VERSION_OVERRIDE=3.3
-      - MESA_GLSL_VERSION_OVERRIDE=330
     volumes:
-      - ./src:/home/ros2_ws/src
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ./ros2_ws:/home/ros2_ws/src
     privileged: true
     stdin_open: true
     tty: true
