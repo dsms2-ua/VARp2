@@ -116,9 +116,26 @@ def generate_launch_description():
         output='log',
     )
 
+    detector_node = Node(
+        package='detector_pkg',
+        executable='detector_node',
+        name='detector_node',
+        output='screen'
+    )
+
+    rqt_node = Node(
+        package='rqt_image_view',
+        executable='rqt_image_view',
+        name='rqt_image_view',
+        arguments=['/detections/image'],
+        output='screen'
+    )
+
     return LaunchDescription([
         gazebo,
         gui_delayed,
         nav_delayed,
         arrange_process,
+        detector_node,
+        rqt_node,
     ])

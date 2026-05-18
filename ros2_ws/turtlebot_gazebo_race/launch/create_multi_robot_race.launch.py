@@ -7,6 +7,8 @@ from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Comm
 from launch_ros.actions import Node, ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 
+import random
+
 def generate_launch_description():
     # Directorios
     pkg_share = get_package_share_directory('turtlebot_gazebo_race')
@@ -53,7 +55,8 @@ def generate_launch_description():
     # Añadir ruta de modelos al resource path de Gazebo (igual que empty_world)
     set_env_vars_resources = AppendEnvironmentVariable(
         'GZ_SIM_RESOURCE_PATH',
-        os.path.join(pkg_turtlebot3_gazebo, 'models')
+        os.path.join(pkg_turtlebot3_gazebo, 'models') +
+        ':' + os.path.join(pkg_share, 'models')
     )
 
     # Servidor de Gazebo (sin GUI)
@@ -182,14 +185,78 @@ def generate_launch_description():
         output='screen',
     )
 
+    # Definimos los límites donde spawnear los obstáculos
+    x_1 = random.uniform(-6.8, 5.9)
+    y_1 = 9.0
+
+    x_2 = random.uniform(-7.3, 0.6)
+    y_2 = 2.0
+
+    x_3 = random.uniform(-6.8, 3)
+    y_3 = -9.0
+
+    # Ruta al sdf del obstáculo
+    person_sdf_file = os.path.join(
+        pkg_share,
+        'models',
+        'person_walking',
+        'model.sdf'
+    )
+
+    # Nodo para hacer el spawn del obstáculo
+    spawn_obstacle_1 = Node(
+        package='ros_gz_sim',
+        executable='create',
+        arguments=[
+            '-name', 'person_walking_1',
+            '-file', person_sdf_file,
+            '-x', str(x_1),
+            '-y', str(y_1),
+            '-z', '0.0',
+            '-Y', str(random.uniform(-3.14, 3.14)) # Hacemos que mire a un lado aleatorio
+        ],
+        output='screen'
+    )
+
+    spawn_obstacle_2 = Node(
+        package='ros_gz_sim',
+        executable='create',
+        arguments=[
+            '-name', 'person_walking_2',
+            '-file', person_sdf_file,
+            '-x', str(x_2),
+            '-y', str(y_2),
+            '-z', '0.0',
+            '-Y', str(random.uniform(-3.14, 3.14)) # Hacemos que mire a un lado aleatorio
+        ],
+        output='screen'
+    )
+
+    spawn_obstacle_3 = Node(
+        package='ros_gz_sim',
+        executable='create',
+        arguments=[
+            '-name', 'person_walking_3',
+            '-file', person_sdf_file,
+            '-x', str(x_3),
+            '-y', str(y_3),
+            '-z', '0.0',
+            '-Y', str(random.uniform(-3.14, 3.14)) # Hacemos que mire a un lado aleatorio
+        ],
+        output='screen'
+    )
+
     return LaunchDescription([
         set_env_vars_resources,   # <-- primero, antes de arrancar Gazebo
         gzserver_cmd,
-        gzclient_cmd,
+        #gzclient_cmd,
         joint_state_publisher,
         robot_state_publisher,
         spawn_entity,
         bridge,
         depth_camera_info,
         depth_to_points,
+        spawn_obstacle_1,
+        spawn_obstacle_2,
+        spawn_obstacle_3,
     ])
