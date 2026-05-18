@@ -4,7 +4,7 @@ services:
     image: var_ros2_image
     container_name: var_container
     environment:
-      - DISPLAY=:${DISPLAY}
+      - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
       - ROS_LOCALHOST_ONLY=1
     volumes:

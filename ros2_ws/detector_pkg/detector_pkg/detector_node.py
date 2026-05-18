@@ -1,18 +1,30 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-from ultralytics import YOLO
 import cv2
 
 class DetectorNode(Node):
     def __init__(self):
         super().__init__('detector_node')
+        try:
+            from ultralytics import YOLO
+        except ModuleNotFoundError as exc:
+            self.get_logger().error(
+                'No se pudo importar ultralytics. '
+                'Instala la dependencia en el contenedor antes de lanzar la deteccion.'
+            )
+            raise exc
+
         self.model = YOLO('yolov8n.pt')
         self.bridge = CvBridge()
         self.sub = self.create_subscription(
-            Image, '/camera/image_raw', self.callback, 10)
+            Image, '/camera/image_raw', self.callback, qos_profile_sensor_data)
         self.pub = self.create_publisher(Image, '/detections/image', 10)
+        self.get_logger().info(
+            'Detector listo: suscrito a /camera/image_raw y publicando en /detections/image'
+        )
 
     def callback(self, msg):
         frame = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
@@ -40,7 +52,9 @@ class DetectorNode(Node):
         frame_pequeno = cv2.resize(annotated_frame, (nuevo_ancho, nuevo_alto))
 
         # Publicar la imagen reducida
-        self.pub.publish(self.bridge.cv2_to_imgmsg(frame_pequeno, 'bgr8'))
+        out_msg = self.bridge.cv2_to_imgmsg(frame_pequeno, 'bgr8')
+        out_msg.header = msg.header
+        self.pub.publish(out_msg)
 
 def main():
     rclpy.init()

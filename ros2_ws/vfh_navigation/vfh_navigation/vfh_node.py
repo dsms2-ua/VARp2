@@ -110,6 +110,7 @@ class VFHNode(Node):
         self.scan_min  = 0.12   # updated from actual scan message
         self.prev_steering = 0.0
         self.cur_steering  = 0.0
+        self._committed_avoid_sign = 0.0
 
         # Fallback hysteresis: cuando no hay valle, mantener la dirección de
         # fallback elegida en el ciclo anterior para evitar que argmin(hist)
@@ -225,6 +226,41 @@ class VFHNode(Node):
         self.get_logger().info(
             f'Siguiente WP [{self.wp_index}]: ({wp["x"]:.2f}, {wp["y"]:.2f})')
 
+    def _select_committed_fallback(self, hist):
+        """
+        Cuando un valle lateral se cierra momentáneamente por la pared,
+        mantener el mismo lado de esquive suele funcionar mejor que girar
+        hacia el mínimo global del histograma.
+        """
+        signed_deg = np.array([((i + 180) % 360) - 180 for i in range(len(hist))], dtype=float)
+
+        # Si ya estábamos esquivando claramente hacia un lado, mantener ese
+        # compromiso y buscar el sector menos denso de ese semiplano frontal.
+        if abs(self.cur_steering) > math.radians(12):
+            self._committed_avoid_sign = math.copysign(1.0, self.cur_steering)
+
+        if self._committed_avoid_sign > 0.0:
+            mask = (signed_deg >= 5.0) & (signed_deg <= 135.0)
+        elif self._committed_avoid_sign < 0.0:
+            mask = (signed_deg <= -5.0) & (signed_deg >= -135.0)
+        else:
+            mask = np.abs(signed_deg) <= 135.0
+
+        candidate_idx = np.where(mask)[0]
+        if candidate_idx.size == 0:
+            best_idx = int(np.argmin(hist))
+        else:
+            # Preferir continuidad con el giro actual dentro del lado elegido.
+            current_deg = math.degrees(self.cur_steering)
+            costs = []
+            for idx in candidate_idx:
+                heading_deg = signed_deg[idx]
+                continuity = abs(heading_deg - current_deg) / 180.0
+                costs.append(float(hist[idx]) + 0.15 * continuity)
+            best_idx = int(candidate_idx[int(np.argmin(costs))])
+
+        return math.radians((best_idx + 180) % 360 - 180)
+
     # ── Stuck detection & recovery ─────────────────────────────────────────
 
     def _check_stuck(self):
@@ -323,10 +359,10 @@ class VFHNode(Node):
         )
 
         if steering is None:
-            # Aún sin valle — ir hacia el sector de menor densidad mientras
-            # se gira. Moverse cambia la geometría y puede abrir un hueco.
-            min_idx = int(np.argmin(hist))
-            fallback_rad = math.radians((min_idx + 180) % 360 - 180)
+            # Aún sin valle: mantener el lado de esquive comprometido suele
+            # evitar que el robot se quede girando cuando la pared cierra
+            # temporalmente el valle lateral.
+            fallback_rad = self._select_committed_fallback(hist)
 
             # Histéresis: si en el ciclo anterior ya estábamos en fallback
             # y la nueva dirección difiere más de 60° de la anterior, se
@@ -353,6 +389,10 @@ class VFHNode(Node):
             )
             # Salimos de fallback: limpiar la memoria para el próximo
             self._prev_fallback_rad = None
+            if abs(steering) < math.radians(8):
+                self._committed_avoid_sign = 0.0
+            else:
+                self._committed_avoid_sign = math.copysign(1.0, steering)
             steer_to_publish = steering
 
         self.prev_steering = self.cur_steering
