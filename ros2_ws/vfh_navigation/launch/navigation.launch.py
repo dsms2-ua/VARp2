@@ -85,37 +85,6 @@ def generate_launch_description():
         output='screen',
     )
 
-    # Step 1: GUI windows + SLAM start after Gazebo Sim bridge is ready (~8s)
-    gui_delayed = TimerAction(
-        period=8.0,
-        actions=[rviz_node, histogram_mpl_node, slam_node],
-    )
-
-    # Step 2: navigation nodes start at 13s — after Gazebo (8s) + robot spawning (~5s).
-    # Independent of window arrangement so a slow matplotlib import never blocks driving.
-    nav_delayed = TimerAction(
-        period=13.0,
-        actions=[vfh_node, metrics_node, path_recorder_node, histogram_viz_node],
-    )
-
-    # Step 3: arrange windows in parallel — best-effort, does not block anything.
-    # Layout (1920x1080): Gazebo Sim left half | RViz top-right | Matplotlib bottom-right
-    arrange_process = ExecuteProcess(
-        cmd=['bash', '-c',
-             'until wmctrl -l | grep -qi "gazebo";        do sleep 0.5; done; '
-             'until wmctrl -l | grep -qi "rviz";          do sleep 0.5; done; '
-             'until wmctrl -l | grep -qi "VFH Histogram"; do sleep 0.5; done; '
-             'sleep 1; '
-             'wmctrl -r "Gazebo Sim"    -t 1; '
-             'wmctrl -r "RViz"          -t 1; '
-             'wmctrl -r "VFH Histogram" -t 1; '
-             'wmctrl -r "Gazebo Sim"    -e 0,0,0,960,1080; '
-             'wmctrl -r "RViz"          -e 0,960,0,960,540; '
-             'wmctrl -r "VFH Histogram" -e 0,960,540,960,540; '
-             'wmctrl -s 1'],
-        output='log',
-    )
-
     detector_node = Node(
         package='detector_pkg',
         executable='detector_node',
@@ -131,11 +100,47 @@ def generate_launch_description():
         output='screen'
     )
 
+    # Step 1: GUI windows + SLAM start after Gazebo Sim bridge is ready (~8s)
+    gui_delayed = TimerAction(
+        period=8.0,
+        actions=[rviz_node, histogram_mpl_node, rqt_node, slam_node],
+    )
+
+    # Step 2: navigation nodes start at 13s — after Gazebo (8s) + robot spawning (~5s).
+    nav_delayed = TimerAction(
+        period=13.0,
+        actions=[vfh_node, metrics_node, path_recorder_node, histogram_viz_node],
+    )
+
+    # Step 3: arrange all 4 windows — best-effort, does not block anything.
+    # Layout (1920x1080):
+    #   Gazebo Sim      left strip          0,    0,  780, 1080
+    #   RViz            top-right         780,    0, 1140,  660
+    #   VFH Histogram   bottom-right-left  780,  660,  570,  420
+    #   rqt_image_view  bottom-right-right 1350,  660,  570,  420
+    arrange_process = ExecuteProcess(
+        cmd=['bash', '-c',
+             'until wmctrl -l | grep -qi "gazebo";        do sleep 0.5; done; '
+             'until wmctrl -l | grep -qi "rviz";          do sleep 0.5; done; '
+             'until wmctrl -l | grep -qi "VFH Histogram"; do sleep 0.5; done; '
+             'until wmctrl -l | grep -qi "rqt";           do sleep 0.5; done; '
+             'sleep 1; '
+             'wmctrl -r "Gazebo Sim"    -t 1; '
+             'wmctrl -r "RViz"          -t 1; '
+             'wmctrl -r "VFH Histogram" -t 1; '
+             'wmctrl -r "rqt"           -t 1; '
+             'wmctrl -r "Gazebo Sim"    -e 0,0,0,780,1080; '
+             'wmctrl -r "RViz"          -e 0,780,0,1140,660; '
+             'wmctrl -r "VFH Histogram" -e 0,780,660,570,420; '
+             'wmctrl -r "rqt"           -e 0,1350,660,570,420; '
+             'wmctrl -s 1'],
+        output='log',
+    )
+
     return LaunchDescription([
         gazebo,
+        detector_node,
         gui_delayed,
         nav_delayed,
         arrange_process,
-        detector_node,
-        rqt_node,
     ])

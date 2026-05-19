@@ -2,13 +2,13 @@ vfh_node:
   ros__parameters:
     # Histogram
     num_sectors: 360
-    density_threshold: 1.5   # menos conservador: mantiene abiertos valles laterales junto a pared
+    density_threshold: 2.5   # menos conservador: mantiene abiertos valles laterales junto a pared
     smoothing_window: 5       # menos suavizado para no cerrar huecos estrechos por promediado
     max_range: 3.5
 
     # Robot geometry
     robot_radius: 0.22        # TurtleBot3 Waffle
-    safety_margin: 0.02       # afloja el ensanchado VFH de obstáculos para permitir esquives más justos
+    safety_margin: 0.01       # afloja el ensanchado VFH de obstáculos para permitir esquives más justos
 
     # VFH+ cost weights (valores del paper original: 5, 2, 2)
     w1: 5.0                   # towards target waypoint
@@ -26,9 +26,15 @@ vfh_node:
     waypoint_tolerance: 0.30  # ajustado al mínimo razonable
     waypoints_file: ''        # empty = auto-resolve from package
 
+    # Valley selection
+    obstacle_detect_range: 2.0
+    min_valley_width: 0      # bins — ignora valles más estrechos (evita entrar en trampas obstáculo+pared)
+    edge_safety_deg: 5        # offset desde el borde del valle hacia el centro (más holgura lateral)
+    fallback_persist_cycles: 30  # ciclos manteniendo dirección cuando el valle desaparece a mitad de esquiva
+
     # Recovery
     stuck_timeout: 2.0        # reduced from 3.0 — faster recovery if VFH fails
-    recovery_backup_dist: 0.5 # aumentado: 0.2m no sacaba al robot de la trampa persona+pared
+    recovery_backup_dist: 0.4 # aumentado: 0.2m no sacaba al robot de la trampa persona+pared
 
 histogram_matplotlib_node:
   ros__parameters:

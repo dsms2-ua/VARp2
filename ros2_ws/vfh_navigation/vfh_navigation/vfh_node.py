@@ -27,6 +27,7 @@ from vfh_navigation.vfh_algorithm import (
     compute_histogram,
     widen_obstacles,
     smooth_histogram,
+    clamp_detected_obstacles,
     find_valleys,
     select_best_valley,
     compute_velocity,
@@ -69,6 +70,10 @@ class VFHNode(Node):
         self.declare_parameter('startup_delay',      5.0)
         self.declare_parameter('angular_gain',       1.5)
         self.declare_parameter('brake_threshold',    3.0)
+        self.declare_parameter('obstacle_detect_range', 1.5)
+        self.declare_parameter('min_valley_width',   15)
+        self.declare_parameter('edge_safety_deg',    6)
+        self.declare_parameter('fallback_persist_cycles', 8)
 
         def p(name):
             return self.get_parameter(name).value
@@ -83,6 +88,10 @@ class VFHNode(Node):
         self.max_ang       = p('max_angular_vel')
         self.angular_gain  = p('angular_gain')
         self.brake_threshold = p('brake_threshold')
+        self.obstacle_detect_range = p('obstacle_detect_range')
+        self.min_valley_width      = p('min_valley_width')
+        self.edge_safety_deg      = p('edge_safety_deg')
+        self._fallback_persist_max = p('fallback_persist_cycles')
         self.wp_tol   = p('waypoint_tolerance')
         self.stuck_timeout       = p('stuck_timeout')
         self.recovery_backup     = p('recovery_backup_dist')
@@ -116,6 +125,9 @@ class VFHNode(Node):
         # fallback elegida en el ciclo anterior para evitar que argmin(hist)
         # haga whip-saw 180° entre ciclos consecutivos.
         self._prev_fallback_rad = None
+        # Persistencia: cuando el valle desaparece a mitad de esquiva, mantener
+        # la dirección actual unos ciclos antes de buscar nueva dirección.
+        self._fallback_persist_count = 0
 
         # Startup: robot waits before moving
         self._node_start_time  = time.time()
@@ -174,7 +186,7 @@ class VFHNode(Node):
             hist  = compute_histogram(self.ranges, self.max_range, self.scan_min)
             hist  = widen_obstacles(hist, self.robot_radius, self.max_range)
             hist  = smooth_histogram(hist, self.smoothing_window)
-            vals  = find_valleys(hist, self.density_threshold)
+            vals  = find_valleys(hist, self.density_threshold, self.min_valley_width)
             n_val = len(vals)
             hmax  = float(np.max(hist))
         else:
@@ -336,19 +348,25 @@ class VFHNode(Node):
         hist = compute_histogram(self.ranges, self.max_range, min_valid)
         hist = widen_obstacles(hist, self.robot_radius, self.max_range)
         hist = smooth_histogram(hist, self.smoothing_window)
+        hist = clamp_detected_obstacles(hist, self.obstacle_detect_range,
+                                        self.density_threshold)
 
         # Publish histogram for visualisation
         hmsg = Float32MultiArray()
         hmsg.data = [float(v) for v in hist]
         self.pub_hist.publish(hmsg)
 
-        valleys = find_valleys(hist, self.density_threshold)
+        valleys = find_valleys(hist, self.density_threshold,
+                               self.min_valley_width)
 
-        # Si no hay ningún valle con el threshold normal, relajarlo hasta x2.
-        # Esto permite encontrar huecos estrechos (entre persona y pared) que
-        # con el margen completo no se detectaban como libres.
+        # Si no hay ningún valle con el threshold normal, relajarlo hasta x2
+        # pero manteniendo el ancho mínimo; si aun así no hay, quitar el ancho
+        # mínimo (situación desesperada — mejor pasar por estrecho que quedarse).
         if not valleys:
-            valleys = find_valleys(hist, self.density_threshold * 2.0)
+            valleys = find_valleys(hist, self.density_threshold * 2.0,
+                                   self.min_valley_width)
+        if not valleys:
+            valleys = find_valleys(hist, self.density_threshold * 2.0, 0)
 
         steering = select_best_valley(
             valleys,
@@ -356,22 +374,26 @@ class VFHNode(Node):
             self.cur_steering,
             self.prev_steering,
             self.w1, self.w2, self.w3,
+            self.edge_safety_deg,
         )
 
         if steering is None:
-            # Aún sin valle: mantener el lado de esquive comprometido suele
-            # evitar que el robot se quede girando cuando la pared cierra
-            # temporalmente el valle lateral.
-            fallback_rad = self._select_committed_fallback(hist)
-
-            # Histéresis: si en el ciclo anterior ya estábamos en fallback
-            # y la nueva dirección difiere más de 60° de la anterior, se
-            # mantiene la anterior. Evita que argmin oscile 180° entre
-            # ciclos cuando dos sectores opuestos tienen densidad parecida.
-            if self._prev_fallback_rad is not None:
-                delta = abs(angle_diff(fallback_rad, self._prev_fallback_rad))
-                if delta > math.radians(60):
-                    fallback_rad = self._prev_fallback_rad
+            # Sin valle: primero intentar mantener la dirección actual unos
+            # ciclos (el robot suele estar a mitad de una esquiva y el valle
+            # reaparecerá en cuanto salga del punto ciego entre obstáculo y
+            # pared). Solo si pasan más ciclos de los permitidos, buscar nueva.
+            self._fallback_persist_count += 1
+            if (self._fallback_persist_count <= self._fallback_persist_max
+                    and abs(self.cur_steering) > math.radians(5)):
+                fallback_rad = self.cur_steering
+            else:
+                fallback_rad = self._select_committed_fallback(hist)
+                # Histéresis: si la nueva dirección difiere más de 60° de la
+                # anterior, mantener la anterior para evitar whip-saw 180°.
+                if self._prev_fallback_rad is not None:
+                    delta = abs(angle_diff(fallback_rad, self._prev_fallback_rad))
+                    if delta > math.radians(60):
+                        fallback_rad = self._prev_fallback_rad
             self._prev_fallback_rad = fallback_rad
 
             linear  = self.min_lin
@@ -379,6 +401,7 @@ class VFHNode(Node):
                           min(self.max_ang, fallback_rad * self.angular_gain))
             steer_to_publish = fallback_rad
         else:
+            self._fallback_persist_count = 0
             # Front sector: bins 345..359 and 0..14 (±15°, 30 bins total)
             front_bins = list(hist[345:]) + list(hist[:15])
             linear, angular = compute_velocity(

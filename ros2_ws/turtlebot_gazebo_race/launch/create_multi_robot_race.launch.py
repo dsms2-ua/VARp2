@@ -186,7 +186,9 @@ def generate_launch_description():
     )
 
     # Definimos los límites donde spawnear los obstáculos
-    x_1 = random.uniform(-6.8, 5.9)
+    # Persona 1: recta principal y=9, DESPUÉS del acueducto (world x=2) y del bowl (world x=5).
+    # Robot viaja de x=9 hacia x=-8, así que x < 1.5 garantiza que aparece tras el acueducto.
+    x_1 = random.uniform(-6.8, 1.5)
     y_1 = 9.0
 
     x_2 = random.uniform(-7.3, 0.6)
@@ -200,6 +202,13 @@ def generate_launch_description():
         pkg_share,
         'models',
         'person_walking',
+        'model.sdf'
+    )
+
+    bowl_sdf_file = os.path.join(
+        pkg_share,
+        'models',
+        'bowl',
         'model.sdf'
     )
 
@@ -246,6 +255,20 @@ def generate_launch_description():
         output='screen'
     )
 
+    # Bowl fijo: 4 m delante del spawn del robot (world x=5, y=9), antes del acueducto
+    spawn_bowl = Node(
+        package='ros_gz_sim',
+        executable='create',
+        arguments=[
+            '-name', 'bowl',
+            '-file', bowl_sdf_file,
+            '-x', '5.0',
+            '-y', '9.0',
+            '-z', '0.0',
+        ],
+        output='screen'
+    )
+
     return LaunchDescription([
         set_env_vars_resources,   # <-- primero, antes de arrancar Gazebo
         gzserver_cmd,
@@ -256,6 +279,7 @@ def generate_launch_description():
         bridge,
         depth_camera_info,
         depth_to_points,
+        spawn_bowl,
         spawn_obstacle_1,
         spawn_obstacle_2,
         spawn_obstacle_3,
